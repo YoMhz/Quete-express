@@ -1,5 +1,6 @@
 const moviesRouter = require('express').Router();
 const Movie = require('../models/movie');
+const usersRouter = require('./users');
 
 moviesRouter.get('/', (req, res) => {
   const { max_duration, color } = req.query;
@@ -39,11 +40,14 @@ moviesRouter.get('/:id', (req, res) => {
 });
 
 moviesRouter.post('/', (req, res) => {
-  const error = Movie.validate(req.body);
-  if (error) {
-    res.status(422).json({ validationErrors: error.details });
-  } else {
-    Movie.create(req.body)
+  usersRouter.findBytoken(req.cookies['user_token'])
+  .then((user) => {
+    const error = Movie.validate(req.body);
+    if (error) {
+      res.status(422).json({ validationErrors : error.details });
+    }
+    else {
+      Movie.create({ ...req.body, user_id: user.id })
       .then((createdMovie) => {
         res.status(201).json(createdMovie);
       })
@@ -51,8 +55,11 @@ moviesRouter.post('/', (req, res) => {
         console.error(err);
         res.status(500).send('Error saving the movie');
       });
-  }
-});
+    }
+    }
+  )
+  .catch(() => { res.status(401).send('Unauthorised user');})
+  });
 
 moviesRouter.put('/:id', (req, res) => {
   let existingMovie = null;
